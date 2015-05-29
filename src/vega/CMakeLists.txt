@@ -1,0 +1,67 @@
+set(headers
+  corotationalLinearFEMForceModel.h
+  corotationalLinearFEM.h
+  eig3.h
+  forceModel.h
+  generateMassMatrix.h
+  homogeneousStVKIsotropicMaterial.h
+  isotropicHyperelasticFEM.h
+  isotropicMaterial.h
+  isotropicMaterialWithCompressionResistance.h
+  mat3d.h
+  matrixIO.h
+  matrixMacros.h
+  matrixMultiplyMacros.h
+  minivector.h
+  multiMatrixIO.h
+  polarDecomposition.h
+  sparseMatrix.h
+  StVKElementABCD.h
+  StVKForceModel.h
+  StVKInternalForces.h
+  StVKIsotropicMaterial.h
+  StVKStiffnessMatrix.h
+  StVKTetABCD.h
+  tetMesh.h
+  tet_mesh_simulator_bridge.h
+  vec2d.h
+  vec3d.h
+  volumetricMeshENuMaterial.h
+  volumetricMesh.h
+  volumetricMeshMooneyRivlinMaterial.h
+  volumetricMeshOrthotropicMaterial.h
+  volumetricMeshParser.h
+)
+
+set(sources
+  corotationalLinearFEM.cpp
+  corotationalLinearFEMForceModel.cpp
+  eig3.cpp
+  forceModel.cpp
+  generateMassMatrix.cpp
+  homogeneousStVKIsotropicMaterial.cpp
+  isotropicHyperelasticFEM.cpp
+  isotropicMaterial.cpp
+  isotropicMaterialWithCompressionResistance.cpp
+  mat3d.cpp
+  matrixIO.cpp
+  multiMatrixIO.cpp
+  polarDecomposition.cpp
+  sparseMatrix.cpp
+  StVKElementABCD.cpp
+  StVKForceModel.cpp
+  StVKInternalForces.cpp
+  StVKIsotropicMaterial.cpp
+  StVKStiffnessMatrix.cpp
+  StVKTetABCD.cpp
+  tetMesh.cpp
+  tet_mesh_simulator_bridge.cpp
+  vec3d.cpp
+  volumetricMesh.cpp
+  volumetricMeshENuMaterial.cpp
+  volumetricMeshMooneyRivlinMaterial.cpp
+  volumetricMeshOrthotropicMaterial.cpp
+  volumetricMeshParser.cpp
+)
+
+add_library(vega ${headers} ${sources})
