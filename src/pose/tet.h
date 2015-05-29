@@ -2,6 +2,7 @@
 #define __WHMIN_TET_H__
 //#include <armadillo>
 #include <vector>
+#include <unordered_map>
 #include "selectable_object.h"
 #include "buffer_manager.h"
 #include "MY_MATH.h"
@@ -82,12 +83,12 @@ public:
   std::vector<int> surface_triangle_indices_; // surface triangle index in surface vertex only array
   std::vector<double> surface_vert_colors_;
 
-
   std::vector<std::vector<int> > adjacent_vertex_;
   std::vector<std::vector<int> > incident_edge_;
   std::vector<std::vector<int> > incident_triangle_;
   std::vector<std::vector<int> > incident_triangle_renderer_;
   std::vector<std::vector<int> > incident_triangle_renderer__2;
+  std::vector<std::vector<int> > special_triangles_;
   std::vector<std::vector<int> > incident_tet_;
   std::vector<std::vector<int> > rank_in_tet_;
   double* tmp_vertex_pos_;
@@ -144,6 +145,9 @@ public:
   std::vector<double> barycentric_of_joint_;
 
   // Some more rendering data structure
+  std::vector<int> interfaceTriangles_;
+  std::vector<int> interface_vertices_global_;
+  int surfaceVertOldSize_;
 
   std::vector<std::pair<int,int> > interface_vertices_;
   int interface_vertex_split_;

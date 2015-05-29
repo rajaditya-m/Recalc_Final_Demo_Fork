@@ -452,17 +452,31 @@ void Tet::Reset() {
 void Tet::UpdateSurfaceMeshVBO() {
   if (surface_renderer_ == nullptr) return;
   OMP_FOR
-  for (int i = 0; i < int(surface_vertices_.size()); ++i) {
+  for (int i = 0; i < surfaceVertOldSize_; ++i) {
     int global_v = surface_vertices_[i];
-    //surface_vert_pos_[i * 3 + 0] = X[global_v * 3 + 0];
-    //surface_vert_pos_[i * 3 + 1] = X[global_v * 3 + 1];
-    //surface_vert_pos_[i * 3 + 2] = X[global_v * 3 + 2];
     surface_vert_pos_[i * 3 + 0] = render_X[global_v * 3 + 0];
     surface_vert_pos_[i * 3 + 1] = render_X[global_v * 3 + 1];
     surface_vert_pos_[i * 3 + 2] = render_X[global_v * 3 + 2];
     surface_vert_normal_[i * 3 + 0] = VN[global_v * 3 + 0];
     surface_vert_normal_[i * 3 + 1] = VN[global_v * 3 + 1];
     surface_vert_normal_[i * 3 + 2] = VN[global_v * 3 + 2];
+  }
+
+  OMP_FOR
+  for(int i=surfaceVertOldSize_;i < surface_vertices_.size();i++) {
+      int global_v = surface_vertices_[i];
+      surface_vert_pos_[i * 3 + 0] = render_X[global_v * 3 + 0];
+      surface_vert_pos_[i * 3 + 1] = render_X[global_v * 3 + 1];
+      surface_vert_pos_[i * 3 + 2] = render_X[global_v * 3 + 2];
+
+      surface_vert_normal_[i * 3 + 0] = surface_vert_normal_[i * 3 + 1] = surface_vert_normal_[i * 3 + 2] = 0.0;
+
+      for(auto tris:special_triangles_[i-surfaceVertOldSize_]) {
+          surface_vert_normal_[i * 3 + 0] += TN[tris * 3 + 0];
+          surface_vert_normal_[i * 3 + 1] += TN[tris * 3 + 1];
+          surface_vert_normal_[i * 3 + 2] += TN[tris * 3 + 2];
+      }
+
   }
   surface_renderer_->UpdateVertexVBO(&surface_vert_pos_[0], &surface_vert_normal_[0]);
 }
@@ -2034,7 +2048,9 @@ void Tet::Build_Boundary_Triangles() {
   T_Stitch_ = new int[triangle_num_ * 3];
   memcpy(T_Stitch_,T, sizeof(int) * triangle_num_ * 3);
   surface_vertices_.clear();
-  surface_vertices_.insert(surface_vertices_.end(), surface_vertex_set.begin(), surface_vertex_set.end());
+  surface_vertices_.resize(surface_vertex_set.size());
+  std::copy(surface_vertex_set.begin(),surface_vertex_set.end(),surface_vertices_.begin());
+  //surface_vertices_.insert(surface_vertices_.end(), surface_vertex_set.begin(), surface_vertex_set.end());
   surface_tets_.clear();
   surface_tets_.insert(surface_tets_.end(), surface_tet_set.begin(), surface_tet_set.end());
 
@@ -2056,14 +2072,14 @@ void Tet::Build_Boundary_Triangles() {
   }
 
   std::vector<int> global_vert2surface_vert(vertex_num_, -1);
-  surface_vert_pos_.resize(surface_vertices_.size()  * 3);
+  //surface_vert_pos_.resize(surface_vertices_.size()  * 3);
   for (int i = 0; i < int(surface_vertices_.size()); ++i) {
     int v = surface_vertices_[i];
     global_vert2surface_vert[v] = i;
   }
   surface_triangle_indices_.resize(triangle_num_ * 3);
-  surface_vert_colors_.resize(triangle_num_ * 3);
-  surface_vert_normal_.resize(triangle_num_ * 3);
+  //surface_vert_colors_.resize(triangle_num_ * 3 *3);
+  //surface_vert_normal_.resize(triangle_num_ * 3);
   for (int i = 0; i < triangle_num_; i++) {
     int verts[3] = {
       global_vert2surface_vert[T[i * 3 + 0]],
@@ -2087,6 +2103,58 @@ void Tet::Build_Boundary_Triangles() {
       tableVertices.insert(IntV[i]-1) ;
   }
 
+  interface_vertices_global_.resize(tableVertices.size());
+  std::copy(tableVertices.begin(),tableVertices.end(),interface_vertices_global_.begin());
+
+  surfaceVertOldSize_ = surface_vertices_.size();
+
+  //surface_vertices_.resize(surfaceVertOldSize+interface_vertices_global_.size());
+  for(int i=0;i<int(interface_vertices_global_.size());i++) {
+      surface_vertices_.push_back(interface_vertices_global_[i]);
+  }
+
+  for (int i = 0; i < triangle_num_; i++) {
+    int v1 = T[i * 3 + 0];
+    int v2 = T[i * 3 + 1];
+    int v3 = T[i * 3 + 2];
+    std::unordered_set<int>::const_iterator got1 = tableVertices.find (v1);
+    std::unordered_set<int>::const_iterator got2 = tableVertices.find (v2);
+    std::unordered_set<int>::const_iterator got3 = tableVertices.find (v3);
+
+    if(got1!= tableVertices.end() && got2!= tableVertices.end() && got3!= tableVertices.end() ) {
+        //That means this is a surface triangle.... right so lets make this into a
+        interfaceTriangles_.push_back(i);
+    }
+  }
+
+  //Update the surface mappings also
+  surface_vert_pos_.resize(surface_vertices_.size()*3);
+  surface_vert_normal_.resize(surface_vertices_.size()*3);
+  surface_vert_colors_.resize(surface_vertices_.size()*3);
+
+  for(int i=0;i < int(interfaceTriangles_.size()); i++) {
+      int t = interfaceTriangles_[i];
+
+      int oldLoc = surface_vertices_[surface_triangle_indices_[3*t+0]];
+      auto iter = std::find(interface_vertices_global_.begin(), interface_vertices_global_.end(), oldLoc);
+      int index = std::distance(interface_vertices_global_.begin(), iter);
+      surface_triangle_indices_[3*t+0] = surfaceVertOldSize_ + index;
+
+      oldLoc = surface_vertices_[surface_triangle_indices_[3*t+1]];
+      iter = std::find(interface_vertices_global_.begin(), interface_vertices_global_.end(), oldLoc);
+      index = std::distance(interface_vertices_global_.begin(), iter);
+      surface_triangle_indices_[3*t+1] = surfaceVertOldSize_ + index;
+
+      oldLoc = surface_vertices_[surface_triangle_indices_[3*t+2]];
+      iter = std::find(interface_vertices_global_.begin(), interface_vertices_global_.end(), oldLoc);
+      index = std::distance(interface_vertices_global_.begin(), iter);
+      surface_triangle_indices_[3*t+2] = surfaceVertOldSize_ + index;
+
+  }
+
+  special_triangles_.resize(interface_vertices_global_.size());
+
+
   for (int i = 0; i < triangle_num_; i++) {
     int v1 = T[i * 3 + 0];
     int v2 = T[i * 3 + 1];
@@ -2105,6 +2173,19 @@ void Tet::Build_Boundary_Triangles() {
         incident_triangle_renderer_[v1].erase(it1);
         incident_triangle_renderer_[v2].erase(it2);
         incident_triangle_renderer_[v3].erase(it3);
+
+        auto iter = std::find(interface_vertices_global_.begin(), interface_vertices_global_.end(), v1);
+        int index = std::distance(interface_vertices_global_.begin(), iter);
+        special_triangles_[index].push_back(i);
+
+        iter = std::find(interface_vertices_global_.begin(), interface_vertices_global_.end(), v2);
+        index = std::distance(interface_vertices_global_.begin(), iter);
+        special_triangles_[index].push_back(i);
+
+        iter = std::find(interface_vertices_global_.begin(), interface_vertices_global_.end(), v3);
+        index = std::distance(interface_vertices_global_.begin(), iter);
+        special_triangles_[index].push_back(i);
+
     }
 
   }
@@ -2198,6 +2279,7 @@ void Tet::Build_Boundary_Triangles() {
 
   int colIdx1 = 0;
   int colIdx2 = 9;
+
 
 
   for (int i = 0; i < int(surface_vertices_.size()); ++i) {
@@ -2307,12 +2389,12 @@ void Tet::Build_VN() {
     }
     //    dj::Normalize3(normal);
   }*/
-  for (int vx = 0; vx < int(surface_vertices_.size()); ++vx) {
+  for (int vx = 0; vx < surfaceVertOldSize_; ++vx) {
     int v = surface_vertices_[vx];
     double* normal = VN + v * 3;
     //for (auto tri : incident_triangle_[v]) {
     if(global::sim_state != 3) {
-        for (auto tri : incident_triangle_[v]) {
+        for (auto tri : incident_triangle_renderer_[v]) {
             normal[0] += TN[tri * 3 + 0];
             normal[1] += TN[tri * 3 + 1];
             normal[2] += TN[tri * 3 + 2];
